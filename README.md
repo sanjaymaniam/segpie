@@ -5,4 +5,4 @@ Note: Unlike the original SegNet paper, this implementation does not use max-poo
 References:
 1. "SegNet: A Deep Convolutional Encoder-Decoder Architecture for Image Segmentation"
     by Vijay Badrinarayanan, Alex Kendall, Roberto Cipolla
-2.  Alex Kendall's tutorial
+2. KittiSeg by Marvin Teichmann et al.
