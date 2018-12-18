@@ -1,8 +1,8 @@
-# SegNet-tensorflow
+# segpie
 
-This repository, and the ones that follow in this series, are implemented to understand the solutions to semantic segmentation problems over the past ~3 years.
+Note: Unlike the original SegNet paper, this implementation does not use max-pooling indices for upsampling. Instead, transpose convolutions are used.
 
 References:
 1. "SegNet: A Deep Convolutional Encoder-Decoder Architecture for Image Segmentation"
     by Vijay Badrinarayanan, Alex Kendall, Roberto Cipolla
-2.  Alex Kendall's tutorial for the same
+2.  Alex Kendall's tutorial
