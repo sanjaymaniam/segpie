@@ -3,7 +3,7 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 import model_t as net
-import os
+# import os
 
 batch_size = 1
 epochs = 500
@@ -23,8 +23,6 @@ label_input = tf.placeholder(tf.int32, shape=(batch_size, 360, 480), name="label
 is_training = tf.placeholder_with_default(False, shape=(),name='is_training')
 
 preds = net.predict(image_input, is_training)
-
-
 loss = net.loss(preds, label_input)
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 with tf.control_dependencies(update_ops):
@@ -35,7 +33,7 @@ merged = tf.summary.merge_all()
 sess = tf.Session()
 train_writer = tf.summary.FileWriter(summaries_dir + '/train', sess.graph)
 test_writer = tf.summary.FileWriter(summaries_dir + '/test')
-# summ_writer = tf.summary.FileWriter(os.path.join('summaries','first'), sess.graph)
+
 sess.run(tf.global_variables_initializer())
 
 for step in range(epochs):
@@ -44,3 +42,5 @@ for step in range(epochs):
         train_writer.add_summary(summary, step)
         print("step= ",step)
         print("loss= ",_loss)
+
+prediction = sess.run([preds], feed_dict={image_input: image, label_input: label, is_training: False})
