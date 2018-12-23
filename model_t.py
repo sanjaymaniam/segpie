@@ -86,7 +86,7 @@ def loss(input_preds, input_labels):
         tf.summary.scalar('cross_entropy', ce_mean)
         return ce_mean
 
-def predict(image, training):
+def model(image, training):
     img = tf.nn.lrn(image, depth_radius=5, bias=0.01, alpha=0.0001, beta=0.75, name='norm_img')
     conv1a = conv(img, training, D=3, K=64, F=7, S=1, scope = "conv1a")
 
