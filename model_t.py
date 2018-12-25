@@ -1,6 +1,10 @@
 import tensorflow as tf
 import numpy as np
 
+"""
+Main graph nodes are defined here
+"""
+
 def variable_summaries(var):
   with tf.name_scope('summaries'):
     mean = tf.reduce_mean(var)
@@ -77,19 +81,21 @@ def unpool(x, output_shape,D,K,F, S, scope): #transpose convolution
         tf.summary.histogram(scope, op)
         return op
 
-def loss(input_preds, input_labels):
-    one_hot_labels = tf.one_hot(input_labels, depth=11)
+def loss(logits, labels):
+    one_hot_labels = tf.one_hot(labels, depth=11)
     with tf.variable_scope("cross_entropy"):
-        ce_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=one_hot_labels,logits=input_preds, name='cross_entropy')
+        ce_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=one_hot_labels,logits=logits, name='cross_entropy')
         # ce_loss = tf.softmax_cross_entropy_with_logits(labels=input_labels,logits=input_preds, name='cross_entropy')
         ce_mean = tf.reduce_mean(ce_loss, name='ce_mean')
         tf.summary.scalar('cross_entropy', ce_mean)
         return ce_mean
 
+# def accuracy(logits, labels):
+
 def model(image, training):
     img = tf.nn.lrn(image, depth_radius=5, bias=0.01, alpha=0.0001, beta=0.75, name='norm_img')
-    conv1a = conv(img, training, D=3, K=64, F=7, S=1, scope = "conv1a")
 
+    conv1a = conv(img, training, D=3, K=64, F=7, S=1, scope = "conv1a")
     conv1b = conv(conv1a, training, D=64, K=64, F=7, S=1, scope = "conv1b")
     pool1, pool1_indices = max_pool(conv1b, F=2, S=2, scope = "pool1")
 
@@ -106,25 +112,25 @@ def model(image, training):
     pool4, pool4_indices = max_pool(conv4b, F=2, S=2, scope = "pool4")
 
     unpool4 = unpool(pool4, conv4b.get_shape(),64,64,F=2, S=2, scope="unpool4")
-    # unpool4 = max_indices_unpool(pool4, pool4_indices, S=2, scope = "unpool4")
+    #unpool4 = max_indices_unpool(pool4, pool4_indices, S=2, scope = "unpool4")
     deconv4b = conv(unpool4, training, D = 64, K=64, F=7, S=1, scope = "deconv4b")
     deconv4a = conv(deconv4b, training, D = 64, K=64, F=7, S=1, scope = "deconv4a")
 
     unpool3 = unpool(deconv4a, conv3b.get_shape(),64,64,F=2, S=2, scope="unpool3")
-    # unpool3 = max_indices_unpool(deconv4, pool3_indices, S=2, scope = "unpool3")
+    #unpool3 = max_indices_unpool(deconv4, pool3_indices, S=2, scope = "unpool3")
     deconv3b = conv(unpool3, training, D=64, K=64, F=7, S=1, scope = "deconv3b")
     deconv3a = conv(deconv3b, training, D=64, K=64, F=7, S=1, scope = "deconv3a")
 
     unpool2 = unpool(deconv3a, conv2b.get_shape(),64,64,F=2, S=2, scope="unpool2")
-    # unpool2 = max_indices_unpool(deconv3, pool2_indices, S=2, scope = "unpool2")
+    #unpool2 = max_indices_unpool(deconv3, pool2_indices, S=2, scope = "unpool2")
     deconv2b = conv(unpool2, training,D=64, K=64, F=7, S=1, scope = "deconv2b")
     deconv2a = conv(deconv2b, training,D=64, K=64, F=7, S=1, scope = "deconv2a")
 
     unpool1 = unpool(deconv2a, conv1b.get_shape(),64,64,F=2, S=2, scope="unpool1")
-    # unpool1 = max_indices_unpool(deconv2, pool1_indices, S=2, scope = "unpool1")
+    #unpool1 = max_indices_unpool(deconv2, pool1_indices, S=2, scope = "unpool1")
     deconv1b = conv(unpool1, training,D=64, K=64, F=7, S=1, scope = "deconv1b")
     deconv1a = conv(deconv1b, training,D=64, K=64, F=7, S=1, scope = "deconv1a")
 
     logits = conv(deconv1a, training, D=64, K=11, F=1, S=1, scope="logits", activation=False)
-    # logits = tf.cast(tf.argmax(preds, axis=3), tf.int32)
-    return  logits
+
+    return logits

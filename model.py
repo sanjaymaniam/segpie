@@ -1,6 +1,10 @@
 import tensorflow as tf
 import numpy as np
 
+"""
+Main graph nodes are defined here
+"""
+
 def variable_summaries(var):
   with tf.name_scope('summaries'):
     mean = tf.reduce_mean(var)
@@ -12,19 +16,22 @@ def variable_summaries(var):
     tf.summary.scalar('min', tf.reduce_min(var))
     tf.summary.histogram('histogram', var)
 
-def conv(x, training, D, K, F, S, scope):
+def conv(x, trainingstat, D, K, F, S, scope, activation=True):
     with tf.variable_scope(scope):
         strides = [1, S, S, 1]
-        with tf.variable_scope('filter'):
+        with tf.variable_scope('filter', reuse=tf.AUTO_REUSE):
             filter = tf.get_variable('filter', [F,F,D,K],
              initializer = tf.truncated_normal_initializer(stddev=0.01))
             variable_summaries(filter)
-        with tf.variable_scope('bias'):
+        with tf.variable_scope('bias', reuse=tf.AUTO_REUSE):
             bias = tf.get_variable('bias', [K], initializer = tf.constant_initializer(0))
             # variable_summaries(bias)
         x = tf.nn.bias_add(tf.nn.conv2d(x, filter, strides, padding = 'SAME', name=scope), bias)
-        # x = tf.layers.batch_normalization(x, training=is_train)
-        x = tf.nn.relu(x)
+        with tf.variable_scope('batch_norm'):
+            x = tf.layers.batch_normalization(x, training=trainingstat)
+            tf.summary.histogram("batch_norm",x)
+        if(activation):
+            x = tf.nn.relu(x)
         tf.summary.histogram(scope, x)
         return x
 
@@ -65,7 +72,7 @@ def max_indices_unpool(pool, ind, S=2 , scope='unpool_2d'):
 
 def unpool(x, output_shape,D,K,F, S, scope): #transpose convolution
     with tf.variable_scope(scope):
-        with tf.variable_scope('weights'):
+        with tf.variable_scope('weights', reuse=tf.AUTO_REUSE):
             filter = tf.get_variable('filter', [F,F,D,K],
              initializer = tf.truncated_normal_initializer(stddev=0.01))
             variable_summaries(filter)
@@ -74,46 +81,62 @@ def unpool(x, output_shape,D,K,F, S, scope): #transpose convolution
         tf.summary.histogram(scope, op)
         return op
 
-def loss(input_preds, input_labels):
-    one_hot_labels = tf.one_hot(input_labels, depth=12)
+def loss(logits, labels):
+    one_hot_labels = tf.one_hot(labels, depth=11)
     with tf.variable_scope("cross_entropy"):
-        ce_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=one_hot_labels,logits=input_preds, name='cross_entropy')
+        ce_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=one_hot_labels,logits=logits, name='cross_entropy')
         # ce_loss = tf.softmax_cross_entropy_with_logits(labels=input_labels,logits=input_preds, name='cross_entropy')
         ce_mean = tf.reduce_mean(ce_loss, name='ce_mean')
         tf.summary.scalar('cross_entropy', ce_mean)
         return ce_mean
 
-def predict(image, training):
-    img = tf.nn.lrn(image, depth_radius=5, bias=0.01, alpha=0.0001, beta=0.75, name='norm_img')
+# def accuracy(logits, labels):
 
-    conv1 = conv(img, training, D=3, K=64, F=3, S=1, scope = "conv1")
-    pool1, pool1_indices = max_pool(conv1, F=2, S=2, scope = "pool1") #180*240
+def model(image, training):
+    with tf.variable_scope('Model'):
+        img = tf.nn.lrn(image, depth_radius=5, bias=0.01, alpha=0.0001, beta=0.75, name='norm_img')
 
-    conv2 = conv(pool1, training, D=64, K=64, F=3, S=1, scope = "conv2")
-    pool2, pool2_indices = max_pool(conv2, F=2, S=2, scope = "pool2") #90*120
+        conv1a = conv(img, training, D=3, K=64, F=7, S=1, scope = "conv1a")
+        conv1b = conv(conv1a, training, D=64, K=64, F=7, S=1, scope = "conv1b")
+        pool1, pool1_indices = max_pool(conv1b, F=2, S=2, scope = "pool1")
 
-    conv3 = conv(pool2, training, D=64, K=64, F=3, S=1, scope = "conv3")
-    pool3, pool3_indices = max_pool(conv3, F=2, S=2, scope = "pool3") #45*60
+        conv2a = conv(pool1, training, D=64, K=64, F=7, S=1, scope = "conv2a")
+        conv2b = conv(conv2a, training, D=64, K=64, F=7, S=1, scope = "conv2b")
+        pool2, pool2_indices = max_pool(conv2b, F=2, S=2, scope = "pool2")
 
-    conv4 = conv(pool3, training, D=64, K=64, F=3, S=1, scope = "conv4")
-    pool4, pool4_indices = max_pool(conv4, F=2, S=2, scope = "pool4") #23*30
+        conv3a = conv(pool2, training, D=64, K=64, F=7, S=1, scope = "conv3a")
+        conv3b = conv(conv3a, training, D=64, K=64, F=7, S=1, scope = "conv3b")
+        pool3, pool3_indices = max_pool(conv3b, F=2, S=2, scope = "pool3")
 
-    unpool4 = unpool(pool4, conv4.get_shape(),64,64,2, S=2, scope="unpool4")
-    # unpool4 = max_indices_unpool(pool4, pool4_indices, S=2, scope = "unpool4")
-    deconv4 = conv(unpool4, training, D = 64, K=64, F=3, S=1, scope = "deconv4")
+        conv4a = conv(pool3, training, D=64, K=64, F=7, S=1, scope = "conv4a")
+        conv4b = conv(conv4a, training, D=64, K=64, F=7, S=1, scope = "conv4b")
+        pool4, pool4_indices = max_pool(conv4b, F=2, S=2, scope = "pool4")
 
-    unpool3 = unpool(deconv4, conv3.get_shape(),64,64,2, S=2, scope="unpool3")
-    # unpool3 = max_indices_unpool(deconv4, pool3_indices, S=2, scope = "unpool3")
-    deconv3 = conv(unpool3, training, D=64, K=64, F=3, S=1, scope = "deconv3")
+        unpool4 = unpool(pool4, conv4b.get_shape(),64,64,F=2, S=2, scope="unpool4")
+        #unpool4 = max_indices_unpool(pool4, pool4_indices, S=2, scope = "unpool4")
+        deconv4b = conv(unpool4, training, D = 64, K=64, F=7, S=1, scope = "deconv4b")
+        deconv4a = conv(deconv4b, training, D = 64, K=64, F=7, S=1, scope = "deconv4a")
 
-    unpool2 = unpool(deconv3, conv2.get_shape(),64,64,2, S=2, scope="unpool2")
-    # unpool2 = max_indices_unpool(deconv3, pool2_indices, S=2, scope = "unpool2")
-    deconv2 = conv(unpool2, training,D=64, K=64, F=3, S=1, scope = "deconv2")
+        unpool3 = unpool(deconv4a, conv3b.get_shape(),64,64,F=2, S=2, scope="unpool3")
+        #unpool3 = max_indices_unpool(deconv4, pool3_indices, S=2, scope = "unpool3")
+        deconv3b = conv(unpool3, training, D=64, K=64, F=7, S=1, scope = "deconv3b")
+        deconv3a = conv(deconv3b, training, D=64, K=64, F=7, S=1, scope = "deconv3a")
 
-    unpool1 = unpool(deconv2, conv1.get_shape(),64,64,2, S=2, scope="unpool1")
-    # unpool1 = max_indices_unpool(deconv2, pool1_indices, S=2, scope = "unpool1")
-    deconv1 = conv(unpool1, training,D=64, K=64, F=3, S=1, scope = "deconv1")
+        unpool2 = unpool(deconv3a, conv2b.get_shape(),64,64,F=2, S=2, scope="unpool2")
+        #unpool2 = max_indices_unpool(deconv3, pool2_indices, S=2, scope = "unpool2")
+        deconv2b = conv(unpool2, training,D=64, K=64, F=7, S=1, scope = "deconv2b")
+        deconv2a = conv(deconv2b, training,D=64, K=64, F=7, S=1, scope = "deconv2a")
 
-    logits = conv(deconv1, training, D=64, K=12, F=3, S=1, scope="final_logits")
-    # logits = tf.cast(tf.argmax(preds, axis=3), tf.int32)
-    return  logits
+        unpool1 = unpool(deconv2a, conv1b.get_shape(),64,64,F=2, S=2, scope="unpool1")
+        #unpool1 = max_indices_unpool(deconv2, pool1_indices, S=2, scope = "unpool1")
+        deconv1b = conv(unpool1, training,D=64, K=64, F=7, S=1, scope = "deconv1b")
+        deconv1a = conv(deconv1b, training,D=64, K=64, F=7, S=1, scope = "deconv1a")
+
+        logits = conv(deconv1a, training, D=64, K=11, F=1, S=1, scope="logits", activation=False)
+        return logits
+
+def inference(image, training):
+    preds = model(image, training)
+    preds = tf.nn.softmax(preds, axis=3, name="Softmax_op")
+    preds = tf.argmax(preds, axis=3)
+    return preds
