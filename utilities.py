@@ -1,11 +1,23 @@
 import tensorflow as tf
 import numpy as np
+import matplotlib.pyplot as plt
 
 """
 Misc supporting utils
 """
 
-def showLabel(image):
+def inputs(cwd, images, labels, batch_size):
+    train_image_directories = tf.data.Dataset.list_files(cwd + images)
+    train_label_directories = tf.data.Dataset.list_files(cwd + labels)
+    train_images = train_image_directories.map(lambda x: tf.image.decode_png(tf.read_file(x)))
+    train_label = train_label_directories.map(lambda x: tf.image.decode_png(tf.read_file(x)))
+    dataset = tf.data.Dataset.zip((train_images, train_label)).shuffle(30).batch(batch_size).prefetch(1)
+    iterator = dataset.make_initializable_iterator()
+    images, labels = iterator.get_next()
+    init_op = iterator.initializer
+    return [images, labels, init_op]
+
+def show(image):
     """
     Reference: https://github.com/alexgkendall/SegNet-Tutorial/blob/master/Scripts/test_segmentation_camvid.py
     """
@@ -35,4 +47,5 @@ def showLabel(image):
     rgb[:,:,0] = r/1.0
     rgb[:,:,1] = g/1.0
     rgb[:,:,2] = b/1.0
-    return np.uint8(rgb)
+    plt.imshow(np.uint8(rgb))
+    plt.show()
