@@ -26,7 +26,7 @@ def conv(x, training, D, K, F, S, scope, activation=True):
     with tf.variable_scope(scope):
         strides = [1, S, S, 1]
         filter = tf.get_variable('weights', [F,F,D,K], initializer =
-                 tf.truncated_normal_initializer(stddev=0.01))
+                 tf.truncated_normal_initializer(stddev=0.1))
         variable_summaries(filter)
         bias = tf.get_variable('bias', [K], initializer = tf.constant_initializer(0))
         # variable_summaries(bias)
@@ -55,7 +55,7 @@ def unpool(x, output_shape,D,K,F, S, scope):
     """
     with tf.variable_scope(scope):
         filter = tf.get_variable('weights', [F,F,D,K],
-             initializer = tf.truncated_normal_initializer(stddev=0.01))
+             initializer = tf.truncated_normal_initializer(stddev=0.1))
         variable_summaries(filter)
         strides = [1,S,S,1]
         op = tf.nn.conv2d_transpose(x, filter, output_shape,strides,padding = 'SAME')
@@ -75,7 +75,7 @@ def loss(logits, labels):
 
 def accuracy(preds, labels):
     print(preds, labels)
-    acc = tf.math.equal(preds, labels)
+    acc = tf.math.equal(tf.cast(preds, tf.int32), tf.cast(tf.reshape(labels,[1,360,480]), tf.int32))
     acc = tf.reduce_sum(tf.cast(acc, tf.float32))
     acc = acc/(360*480)
     return acc

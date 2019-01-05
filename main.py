@@ -1,6 +1,7 @@
 import tensorflow as tf
 from PIL import Image
 import numpy as np
+# np.set_printoptions(threshold=np.nan)
 import os
 
 import model as net
@@ -18,7 +19,7 @@ test_annot_dir = '/CamVid/trainannot/*.png'
 
 #Hyperparameters
 batch_size = 1
-train_epochs = 200
+train_epochs = 3
 
 #Placeholders
 image_input = tf.placeholder(tf.float32, shape=(batch_size, 360, 480, 3), name="input")
@@ -56,19 +57,21 @@ print('Training...')
 for step in range(train_epochs):
     try:
         image, labels = sess.run([train_input[0], train_input[1]])
-        _, _loss, summary = sess.run([train, loss, merged], feed_dict={image_input: image, label_input: labels, is_training: True})
+        _, _loss, summary, acc = sess.run([train, loss, merged, accuracy], feed_dict={image_input: image, label_input: labels, is_training: True})
         if step % 1 == 0:
             train_writer.add_summary(summary, step)
             print("step= ",step)
             print("loss= ",_loss)
+            print("accuracy= ", acc)
     except tf.errors.OutOfRangeError:
         print("End of training dataset")
         break
 print('Training completed')
 
 #Trial
-image_t = (np.array(Image.open("./CamVid/train/0001TP_006690.png"))).astype('float32').reshape(1,360,480,3)
-labels_t = (np.array(Image.open("./CamVid/trainannot/0001TP_006690.png"))).astype('int').reshape(360,480)
-prediction = sess.run([preds], feed_dict={image_input: image_t})
-X= np.array(prediction)
-utils.show(X)
+# image_t = (np.array(Image.open("./CamVid/train/0001TP_006690.png"))).astype('float32').reshape(1,360,480,3)
+# labels_t = (np.array(Image.open("./CamVid/trainannot/0001TP_006690.png"))).astype('int').reshape(360,480)
+# prediction = sess.run([preds], feed_dict={image_input: image_t})
+# print(prediction)
+# X= np.array(prediction)
+# utils.show(X)
